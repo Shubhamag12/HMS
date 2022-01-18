@@ -1,13 +1,11 @@
 package models
 
-import "time"
+import time
 
 type Guest struct {
-	Id           int
-	HotelId      int
-	PaymentId    int
-	Name         string
-	CheckInDate  time.Time
-	CheckOutDate time.Time
-	RoomNumber   int
+	Id           int    `json:"id"`
+	Name         string `json:"name"`
+	CheckInDate  string `json:"inDate"`
+	CheckOutDate string `json:"outDate"`
+	RoomNumber   int    `json:"RoomNumber"`
 }
