@@ -1,9 +1,9 @@
 package models
 
 type Hotel struct {
-	Id              int
-	Name            string
-	RoomCount       int
-	UnoccupiedRooms int
-	CostPerDay      int
+	Id              int    `json:"id"`
+	Name            string `json:"hotelName"`
+	RoomCount       int    `json:"roomCount"`
+	UnoccupiedRooms int    `json:"roomOcc"`
+	CostPerDay      int    `json:"cost"`
 }
