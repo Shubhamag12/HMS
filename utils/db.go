@@ -13,10 +13,26 @@ func GetGuestsByID(db *sql.DB, id int) *sql.Row {
 }
 
 func DeleteGuest(db *sql.DB, id int) (sql.Result, error) {
+	decrementRoomNum := "UPDATE hotel_man.guest SET occupied_rooms = occupied_rooms - 1 WHERE id=?"
 	q := "DELETE FROM hotel_man.guest WHERE id = ?"
-	res, err := db.Exec(q, id)
+	tx, err := db.Begin()
 	if err != nil {
 		log.Panicln(err)
+	}
+	descrementRes, decrementErr := tx.Exec(decrementRoomNum)
+	if decrementErr != nil {
+		tx.RollBack()
+		log.Panicln(err)
+	}
+	log.Println(descrementRes)
+	res, err := tx.Exec(q, id)
+	if err != nil {
+		log.Panicln(err)
+	}
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		tx.Rollback()
+		log.Panicln(commitErr)
 	}
 	return res, nil
 }
