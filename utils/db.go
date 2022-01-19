@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/Shubhamag12/HMS/models"
@@ -21,7 +22,6 @@ func CreateHotel(db *sql.DB, hotel *models.Hotel) (sql.Result, error) {
 
 // GetHotelStats This functions gives us the vital stats
 func GetHotelStats(db *sql.DB) (*sql.Row, error) {
-	const id = 1
 	query := "SELECT * from hotel_man.hotel WHERE id=1"
 	row := db.QueryRow(query)
 
@@ -51,7 +51,8 @@ func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
 	selectQuery := "SELECT occupied_rooms from hotel_man.hotel WHERE id=1"
-	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, room_number) VALUES (?, ?, ?, ?)"
+	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, room_number, payment) VALUES (?, ?, ?, ?, ?)"
+
 	tx, err := db.Begin()
 	if err != nil {
 		log.Panicln(err)
@@ -74,7 +75,7 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 		log.Panicln(scanErr)
 	}
 	
-	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String(), roomCount)
+	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String(), roomCount, guest.Payment)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(insertErr)
