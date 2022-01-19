@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"database/sql"
 
 	"github.com/Shubhamag12/HMS/conf"
 	"github.com/Shubhamag12/HMS/models"
