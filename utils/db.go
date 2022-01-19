@@ -3,6 +3,7 @@ package utils
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/Shubhamag12/HMS/models"
 )
@@ -37,15 +38,6 @@ func ChangeTotalRooms(db *sql.DB, newRoomCount int) (sql.Result, error) {
 	return res, nil
 }
 
-func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
-	query := "SELECT * from hotel_man.guest"
-	rows, err := db.Query(query)
-	if err != nil {
-		log.Panicln(err)
-	}
-	return rows, nil
-}
-
 // CreateGuest TODO: requires CONSTRAINT occupied_rooms <= total_rooms ENFORCED, occupied_rooms >= 0 ENFORCED
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
@@ -65,7 +57,7 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	log.Println(incrementRes)
 
 	selectRes := tx.QueryRow(selectQuery)
-	
+
 	var roomCount int
 	log.Println(selectRes)
 	scanErr := selectRes.Scan(&roomCount)
@@ -73,18 +65,72 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 		tx.Rollback()
 		log.Panicln(scanErr)
 	}
-	
+
 	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String(), roomCount, guest.Payment)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(insertErr)
 	}
 	log.Println(insertRes)
-	
+
 	commitErr := tx.Commit()
 	if commitErr != nil {
 		tx.Rollback()
 		log.Panicln(commitErr)
 	}
 	return insertRes, nil
+}
+
+func GetGuestByID(db *sql.DB, id int) *sql.Row {
+	q := "SELECT * from hotel_man.guest WHERE id=?"
+	row := db.QueryRow(q, id)
+	return row
+}
+
+func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
+	query := "SELECT * from hotel_man.guest"
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Panicln(err)
+	}
+	return rows, nil
+}
+
+func UpdateCheckOutDate(db *sql.DB, t time.Time, id int) (sql.Result, error) {
+	q := "UPDATE hotel_man.guest SET guest.check_out_date=? WHERE id = ?"
+	rows, err := db.Exec(q, t.String(), id)
+	if err != nil {
+		log.Panicln(err)
+	}
+	return rows, nil
+}
+
+func DeleteGuest(db *sql.DB, id int) (sql.Result, error) {
+	decrementRoomNum := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms - 1 WHERE id=1"
+	q := "DELETE FROM hotel_man.guest WHERE id = ?"
+
+	tx, err := db.Begin()
+	if err != nil {
+		log.Panicln(err)
+	}
+
+	descrementRes, decrementErr := tx.Exec(decrementRoomNum)
+	if decrementErr != nil {
+		tx.Rollback()
+		log.Panicln(err)
+	}
+	log.Println(descrementRes)
+
+	res, err := db.Exec(q, id)
+	if err != nil {
+		tx.Rollback()
+		log.Panicln(err)
+	}
+
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		tx.Rollback()
+		log.Panicln(commitErr)
+	}
+	return res, nil
 }
