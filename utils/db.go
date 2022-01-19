@@ -50,7 +50,8 @@ func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
 // CreateGuest TODO: requires CONSTRAINT occupied_rooms <= total_rooms ENFORCED, occupied_rooms >= 0 ENFORCED
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
-	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date) VALUES (?, ?, ?)"
+	selectQuery := "SELECT occupied_rooms from hotel_man.hotel WHERE id=1"
+	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, room_number) VALUES (?, ?, ?, ?)"
 	tx, err := db.Begin()
 	if err != nil {
 		log.Panicln(err)
@@ -62,8 +63,18 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 		log.Panicln(err)
 	}
 	log.Println(incrementRes)
+
+	selectRes := tx.QueryRow(selectQuery)
 	
-	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String())
+	var roomCount int
+	log.Println(selectRes)
+	scanErr := selectRes.Scan(&roomCount)
+	if err != nil {
+		tx.Rollback()
+		log.Panicln(scanErr)
+	}
+	
+	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String(), roomCount)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(insertErr)
