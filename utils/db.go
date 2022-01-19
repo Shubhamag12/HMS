@@ -10,7 +10,7 @@ import (
 // CreateHotel This function is ideally called only once to create our fictional hotel we also assume that it has id=1
 // (for now)
 func CreateHotel(db *sql.DB, hotel *models.Hotel) (sql.Result, error) {
-	query := "INSERT INTO hotel_man.hotel (name, total_rooms, cost_per_day) VALUES (?, ?, ?, ?)"
+	query := "INSERT INTO hotel_man.hotel (name, total_rooms, cost_per_day) VALUES (?, ?, ?)"
 	res, err := db.Exec(query, hotel.Name, hotel.TotalRooms, hotel.CostPerDay)
 	if err != nil {
 		log.Panicln(err)
