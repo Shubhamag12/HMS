@@ -25,7 +25,7 @@ func DeleteGuest(db *sql.DB, id int) (sql.Result, error) {
 		log.Panicln(err)
 	}
 	log.Println(descrementRes)
-	res, err := tx.Exec(q, id)
+	res, err := db.Exec(q, id)
 	if err != nil {
 		log.Panicln(err)
 	}
