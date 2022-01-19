@@ -3,41 +3,45 @@ package utils
 import (
 	"database/sql"
 	"log"
-
-	"github.com/Shubhamag12/HMS/models"
+	"time"
 )
 
-func CreateHotel(db *sql.DB, hotel *models.Hotel) (sql.Result, error) {
-	query := "INSERT INTO hotel_man.hotel (name, room_count, unoccupied_rooms, cost_per_day) VALUES (?, ?, ?, ?, ?)"
-	res, err := db.Exec(query, hotel.Name, hotel.RoomCount, hotel.UnoccupiedRooms, hotel.CostPerDay)
+func GetGuestsByID(db *sql.DB, id int) *sql.Row {
+	q := "SELECT * from hotel_man.guest WHERE id=?"
+	rows := db.QueryRow(q, id)
+	return rows
+}
+
+func DeleteGuest(db *sql.DB, id int) (sql.Result, error) {
+	decrementRoomNum := "UPDATE hotel_man.guest SET occupied_rooms = occupied_rooms - 1 WHERE id=?"
+	q := "DELETE FROM hotel_man.guest WHERE id = ?"
+	tx, err := db.Begin()
 	if err != nil {
-		// TODO: better error handling
-		log.Fatal(err)
+		log.Panicln(err)
 	}
-	log.Println(res)
+	descrementRes, decrementErr := tx.Exec(decrementRoomNum)
+	if decrementErr != nil {
+		tx.RollBack()
+		log.Panicln(err)
+	}
+	log.Println(descrementRes)
+	res, err := db.Exec(q, id)
+	if err != nil {
+		log.Panicln(err)
+	}
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		tx.Rollback()
+		log.Panicln(commitErr)
+	}
 	return res, nil
 }
 
-func CreateGuest(db *sql.DB, guest *models.Guest, payment *models.Payment) (sql.Result, sql.Result, error) {
-	// TODO: execute query to do the payment here
-	paymentRes, err := CreatePayment(db, payment)
+func UpdateCheckOutDate(db *sql.DB, t time.Time, id int) (sql.Result, error) {
+	q := "UPDATE hotel_man.guest SET guest.check_out_date=? WHERE id = ?"
+	rows, err := db.Exec(q, t.String(), id)
 	if err != nil {
-		log.Panic(err)
+		log.Panicln(err)
 	}
-	log.Println(paymentRes)
-	query := "INSERT INTO hotel_man.guest (hotel_id, payment_id, name, check_in_date, check_out_date, room_number) VALUES (?, ?, ?, ?, ?, ?)"
-	res, err := db.Exec(query, guest.HotelId, guest.PaymentId, guest.Name, guest.CheckInDate, guest.CheckOutDate, guest.RoomNumber)
-	if err != nil {
-		log.Panic(err)
-	}
-	return res, paymentRes, nil
-}
-
-func CreatePayment(db *sql.DB, payment *models.Payment) (sql.Result, error) {
-	query := "INSERT INTO hotel_man.payment (booking_payment, is_checkout_extended, overdue) VALUES (?, ?, ?)"
-	res, err := db.Exec(query, payment.BookingPayment, payment.IsCheckoutExtended, payment.Overdue)
-	if err != nil {
-		log.Panic(err)
-	}
-	return res, nil
+	return rows, nil
 }
