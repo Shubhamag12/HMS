@@ -10,8 +10,8 @@ import (
 // CreateHotel This function is ideally called only once to create our fictional hotel we also assume that it has id=1
 // (for now)
 func CreateHotel(db *sql.DB, hotel *models.Hotel) (sql.Result, error) {
-	query := "INSERT INTO hotel_man.hotel (name, room_count, occupied_rooms, cost_per_day) VALUES (?, ?, ?, ?)"
-	res, err := db.Exec(query, hotel.Name, hotel.RoomCount, hotel.OccupiedRooms, hotel.CostPerDay)
+	query := "INSERT INTO hotel_man.hotel (name, total_rooms, cost_per_day) VALUES (?, ?, ?, ?)"
+	res, err := db.Exec(query, hotel.Name, hotel.TotalRooms, hotel.CostPerDay)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -28,18 +28,10 @@ func GetHotelStats(db *sql.DB) (*sql.Row, error) {
 	return row, nil
 }
 
-func ChangeRoomCount(db *sql.DB, newRoomCount int) (sql.Result, error) {
-	query := "UPDATE hotel_man.hotel SET room_count=? WHERE id=1"
+// ChangeTotalRooms TODO: requires CONSTRAINT total_rooms >= occupied_rooms ENFORCED
+func ChangeTotalRooms(db *sql.DB, newRoomCount int) (sql.Result, error) {
+	query := "UPDATE hotel_man.hotel SET total_rooms=? WHERE id=1"
 	res, err := db.Exec(query, newRoomCount)
-	if err != nil {
-		log.Panicln(err)
-	}
-	return res, nil
-}
-
-func IncrementOccupiedRooms(db *sql.DB) (sql.Result, error) {
-	query := "UPDATE hotel_man.hotel SET room_count=room_count+1 WHERE id=1"
-	res, err := db.Exec(query)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -55,22 +47,33 @@ func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
 	return rows, nil
 }
 
+// CreateGuest TODO: requires CONSTRAINT occupied_rooms <= total_rooms ENFORCED, occupied_rooms >= 0 ENFORCED
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
-	decrementQuery := "UPDATE hotel_man.hotel SET room_count = room_count - 1 where id = 1"
-	selectQuery := "SELECT room_count from hotel_man.hotel where id=1"
-	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = CASE WHEN room_count >= 0 THEN occupied_rooms + 1 ELSE occupied_rooms where id = 1"
+	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
 	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date) VALUES (?, ?, ?)"
-	res, decrErr := db.Exec(decrementQuery)
-	if decrErr != nil {
-		log.Panicln(decrErr)
+	tx, err := db.Begin()
+	if err != nil {
+		log.Panicln(err)
 	}
-	log.Println(res)
-	row := db.QueryRow(selectQuery)
-	var roomCount int
 
-	selErr := row.Scan(&roomCount)
-
-	if selErr != nil {
-		log.Panicln(selErr)
+	incrementRes, incrementErr := tx.Exec(incrementQuery)
+	if incrementErr != nil {
+		tx.Rollback()
+		log.Panicln(err)
 	}
+	log.Println(incrementRes)
+	
+	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String())
+	if err != nil {
+		tx.Rollback()
+		log.Panicln(insertErr)
+	}
+	log.Println(insertRes)
+	
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		tx.Rollback()
+		log.Panicln(commitErr)
+	}
+	return insertRes, nil
 }
