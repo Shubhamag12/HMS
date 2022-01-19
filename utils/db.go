@@ -2,7 +2,6 @@ package utils
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
 	"github.com/Shubhamag12/HMS/models"
