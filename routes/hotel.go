@@ -43,6 +43,6 @@ func CreateHotel(w http.ResponseWriter, r *http.Request) {
 	if createErr != nil {
 		log.Panicln(createErr)
 	}
-
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
 }

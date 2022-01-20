@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -27,6 +28,7 @@ func CreateGuest(w http.ResponseWriter, r *http.Request) {
 	if insertErr != nil {
 		log.Panicln(insertErr)
 	}
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(insertRes)
 }
 
@@ -41,9 +43,13 @@ func GetGuestByID(w http.ResponseWriter, r *http.Request) {
 	var guest models.Guest
 	res := utils.GetGuestByID(conf.DBHandle, guestId)
 
-	scanErr := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.RoomNumber, &guest.CheckInDate, &guest.CheckOutDate)
+	scanErr := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.CheckInDate, &guest.CheckOutDate)
 	if scanErr != nil {
-		log.Panicln(scanErr)
+		log.Println(scanErr)
+		if scanErr.Error() == sql.ErrNoRows.Error() {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 	}
 	json.NewEncoder(w).Encode(guest)
 }
@@ -59,7 +65,7 @@ func GetAllGuests(w http.ResponseWriter, r *http.Request) {
 	defer res.Close()
 	for res.Next() {
 		var guest models.Guest
-		if err := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.RoomNumber, &guest.CheckInDate, &guest.CheckOutDate); err != nil {
+		if err := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.CheckInDate, &guest.CheckOutDate); err != nil {
 			log.Panicln(err)
 		}
 		guests = append(guests, guest)
@@ -92,6 +98,7 @@ func UpdateCheckOutDate(w http.ResponseWriter, r *http.Request) {
 	if UpdateErr != nil {
 		log.Panicln(UpdateErr)
 	}
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(res)
 }
 
