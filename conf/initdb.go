@@ -2,10 +2,9 @@ package conf
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
-
-	// "time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -13,8 +12,9 @@ import (
 var DBHandle *sql.DB
 
 func init() {
+	connString := fmt.Sprintf("%v:%v@%v(%v:%v)/%v", EnvMap["DB_USER"], EnvMap["DB_PASSWORD"], EnvMap["DB_PROTO"], EnvMap["DB_HOST"], EnvMap["DB_PORT"], EnvMap["DB_NAME"])
 	var err error
-	DBHandle, err = sql.Open("mysql", "root:1234567890@tcp(127.0.0.1:3306)/hotel_man")
+	DBHandle, err = sql.Open("mysql", connString)
 	if err != nil {
 		log.Fatal(err)
 	}

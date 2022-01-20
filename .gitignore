@@ -1,3 +1,4 @@
+.DS_Store
 .idea
 # Binaries for programs and plugins
 *.exe
@@ -14,3 +15,6 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Prod env file
+.env
