@@ -41,8 +41,15 @@ func ChangeTotalRooms(db *sql.DB, newRoomCount int) (sql.Result, error) {
 // CreateGuest TODO: requires CONSTRAINT occupied_rooms <= total_rooms ENFORCED, occupied_rooms >= 0 ENFORCED
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
-	selectQuery := "SELECT occupied_rooms from hotel_man.hotel WHERE id=1"
+	selectQuery := "SELECT occupied_rooms,cost_per_day from hotel_man.hotel WHERE id=1"
 	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, room_number, payment) VALUES (?, ?, ?, ?, ?)"
+
+	checkInDate, _ := time.Parse("2006-01-02", guest.CheckInDate)
+	checkOutDate, _ := time.Parse("2006-01-02", guest.CheckOutDate)
+	delta := int(checkOutDate.Sub(checkInDate).Hours() / 24)
+	if delta <= 0 {
+		log.Panicln("invalid date range")
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -59,14 +66,15 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	selectRes := tx.QueryRow(selectQuery)
 
 	var roomCount int
+	var costPerDay int
 	log.Println(selectRes)
-	scanErr := selectRes.Scan(&roomCount)
+	scanErr := selectRes.Scan(&roomCount, &costPerDay)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(scanErr)
 	}
-
-	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate.String(), guest.CheckOutDate.String(), roomCount, guest.Payment)
+	guest.Payment = costPerDay * delta
+	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate, guest.CheckOutDate, roomCount, guest.Payment)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(insertErr)
@@ -97,8 +105,21 @@ func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
 }
 
 func UpdateCheckOutDate(db *sql.DB, t time.Time, id int) (sql.Result, error) {
-	q := "UPDATE hotel_man.guest SET guest.check_out_date=? WHERE id = ?"
-	rows, err := db.Exec(q, t.String(), id)
+	checkInQuery := "SELECT check_in_date from hotel_man.guest WHERE id = ?"
+	costPerDayQuery := "SELECT cost_per_day from hotel_man.hotel WHERE id=1"
+	updateQuery := "UPDATE hotel_man.guest SET check_out_date=?, payment=? WHERE id = ?"
+	var costPerDay int
+	var checkInDateString string
+	checkInRes := db.QueryRow(checkInQuery, id)
+	costPerDayRes := db.QueryRow(costPerDayQuery)
+
+	checkInRes.Scan(&checkInDateString)
+	costPerDayRes.Scan(&costPerDay)
+
+	checkInDate, _ := time.Parse("2006-01-02", checkInDateString)
+	delta := int(t.Sub(checkInDate).Hours() / 24)
+	newPaymentAmount := costPerDay * delta
+	rows, err := db.Exec(updateQuery, t.Format("2006-01-02"), newPaymentAmount, id)
 	if err != nil {
 		log.Panicln(err)
 	}

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"database/sql"
 
 	"github.com/Shubhamag12/HMS/conf"
 	"github.com/Shubhamag12/HMS/models"
@@ -14,14 +13,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func CreateGuest(w http.ResponseWriter, r *http.Request)  {
+func CreateGuest(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	var guest models.Guest
+
 	err := json.NewDecoder(r.Body).Decode(&guest)
 	if err != nil {
 		log.Panicln(err)
 	}
+
 	insertRes, insertErr := utils.CreateGuest(conf.DBHandle, &guest)
 	if insertErr != nil {
 		log.Panicln(insertErr)
@@ -29,7 +30,7 @@ func CreateGuest(w http.ResponseWriter, r *http.Request)  {
 	json.NewEncoder(w).Encode(insertRes)
 }
 
-func GetGuestByID(w http.ResponseWriter, r *http.Request)  {
+func GetGuestByID(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
@@ -38,15 +39,16 @@ func GetGuestByID(w http.ResponseWriter, r *http.Request)  {
 		log.Panicln(err)
 	}
 	var guest models.Guest
-	res :=utils.GetGuestByID(conf.DBHandle, guestId)
-	scanErr := res.Scan(&guest)
+	res := utils.GetGuestByID(conf.DBHandle, guestId)
+
+	scanErr := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.RoomNumber, &guest.CheckInDate, &guest.CheckOutDate)
 	if scanErr != nil {
 		log.Panicln(scanErr)
 	}
 	json.NewEncoder(w).Encode(guest)
 }
 
-func GetAllGuests(w http.ResponseWriter, r *http.Request)  {
+func GetAllGuests(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	var guests []models.Guest
@@ -57,7 +59,7 @@ func GetAllGuests(w http.ResponseWriter, r *http.Request)  {
 	defer res.Close()
 	for res.Next() {
 		var guest models.Guest
-		if err := res.Scan(&guest); err != nil {
+		if err := res.Scan(&guest.Id, &guest.Payment, &guest.Name, &guest.RoomNumber, &guest.CheckInDate, &guest.CheckOutDate); err != nil {
 			log.Panicln(err)
 		}
 		guests = append(guests, guest)
@@ -69,11 +71,16 @@ func GetAllGuests(w http.ResponseWriter, r *http.Request)  {
 	json.NewEncoder(w).Encode(guests)
 }
 
-func UpdateCheckOutDate(w http.ResponseWriter, r *http.Request)  {
+func UpdateCheckOutDate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
-	newCheckoutDate, err := time.Parse("2006-01-02", params["date"])
+	var reqData map[string]string
+	parseErr := json.NewDecoder(r.Body).Decode(&reqData)
+	if parseErr != nil {
+		log.Panicln(parseErr)
+	}
+	newCheckoutDate, err := time.Parse("2006-01-02", reqData["date"])
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -88,7 +95,7 @@ func UpdateCheckOutDate(w http.ResponseWriter, r *http.Request)  {
 	json.NewEncoder(w).Encode(res)
 }
 
-func DeleteGuest(w http.ResponseWriter, r *http.Request)  {
+func DeleteGuest(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
