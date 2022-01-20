@@ -6,5 +6,4 @@ type Guest struct {
 	Name         string `json:"name,omitempty"`
 	CheckInDate  string `json:"check_in_date,omitempty"`
 	CheckOutDate string `json:"check_out_date,omitempty"`
-	RoomNumber   int    `json:"room_number,omitempty"`
 }

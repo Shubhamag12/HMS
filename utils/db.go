@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"time"
+	"fmt"
 
 	"github.com/Shubhamag12/HMS/models"
 )
@@ -41,8 +42,8 @@ func ChangeTotalRooms(db *sql.DB, newRoomCount int) (sql.Result, error) {
 // CreateGuest TODO: requires CONSTRAINT occupied_rooms <= total_rooms ENFORCED, occupied_rooms >= 0 ENFORCED
 func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	incrementQuery := "UPDATE hotel_man.hotel SET occupied_rooms = occupied_rooms + 1 WHERE id=1"
-	selectQuery := "SELECT occupied_rooms,cost_per_day from hotel_man.hotel WHERE id=1"
-	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, room_number, payment) VALUES (?, ?, ?, ?, ?)"
+	selectQuery := "SELECT cost_per_day from hotel_man.hotel WHERE id=1"
+	insertQuery := "INSERT INTO hotel_man.guest (name, check_in_date, check_out_date, payment) VALUES (?, ?, ?, ?)"
 
 	checkInDate, _ := time.Parse("2006-01-02", guest.CheckInDate)
 	checkOutDate, _ := time.Parse("2006-01-02", guest.CheckOutDate)
@@ -65,16 +66,16 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 
 	selectRes := tx.QueryRow(selectQuery)
 
-	var roomCount int
 	var costPerDay int
 	log.Println(selectRes)
-	scanErr := selectRes.Scan(&roomCount, &costPerDay)
+	scanErr := selectRes.Scan(&costPerDay)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(scanErr)
 	}
 	guest.Payment = costPerDay * delta
-	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate, guest.CheckOutDate, roomCount, guest.Payment)
+	fmt.Println(guest)
+	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate, guest.CheckOutDate, guest.Payment)
 	if err != nil {
 		tx.Rollback()
 		log.Panicln(insertErr)
