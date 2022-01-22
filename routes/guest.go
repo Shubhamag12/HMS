@@ -3,8 +3,10 @@ package routes
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/Shubhamag12/HMS/models"
 	"github.com/Shubhamag12/HMS/utils"
 	"github.com/gorilla/mux"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 func CreateGuest(w http.ResponseWriter, r *http.Request) {
@@ -22,6 +25,17 @@ func CreateGuest(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&guest)
 	if err != nil {
 		log.Panicln(err)
+	}
+
+	re := regexp.MustCompile(`((19|20)\\d\\d)/(0?[1-9]|1[012])/(0?[1-9]|[12][0-9]|3[01])`)
+	v := validator.New()
+	_ = v.RegisterValidation("dates", func(fl validator.FieldLevel) bool {
+		return re.Match([]byte(fl.Field().String()))
+	})
+
+	val_err := v.Struct(guest)
+	for _, e := range val_err.(validator.ValidationErrors) {
+		fmt.Println(e)
 	}
 
 	insertRes, insertErr := utils.CreateGuest(conf.DBHandle, &guest)
