@@ -2,9 +2,9 @@ package utils
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"time"
-	"fmt"
 
 	"github.com/Shubhamag12/HMS/models"
 )
@@ -15,9 +15,8 @@ func CreateHotel(db *sql.DB, hotel *models.Hotel) (sql.Result, error) {
 	query := "INSERT INTO hotel_man.hotel (name, total_rooms, cost_per_day) VALUES (?, ?, ?)"
 	res, err := db.Exec(query, hotel.Name, hotel.TotalRooms, hotel.CostPerDay)
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
-	log.Println(res)
 	return res, nil
 }
 
@@ -34,7 +33,7 @@ func ChangeTotalRooms(db *sql.DB, newRoomCount int) (sql.Result, error) {
 	query := "UPDATE hotel_man.hotel SET total_rooms=? WHERE id=1"
 	res, err := db.Exec(query, newRoomCount)
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -48,21 +47,18 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	checkInDate, _ := time.Parse("2006-01-02", guest.CheckInDate)
 	checkOutDate, _ := time.Parse("2006-01-02", guest.CheckOutDate)
 	delta := int(checkOutDate.Sub(checkInDate).Hours() / 24)
-	if delta <= 0 {
-		log.Panicln("invalid date range")
-	}
 
 	tx, err := db.Begin()
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
 
 	incrementRes, incrementErr := tx.Exec(incrementQuery)
 	if incrementErr != nil {
 		tx.Rollback()
-		log.Panicln(err)
+		return nil, incrementErr
 	}
-	log.Println(incrementRes)
+	log.Println(incrementRes.LastInsertId())
 
 	selectRes := tx.QueryRow(selectQuery)
 
@@ -71,21 +67,21 @@ func CreateGuest(db *sql.DB, guest *models.Guest) (sql.Result, error) {
 	scanErr := selectRes.Scan(&costPerDay)
 	if err != nil {
 		tx.Rollback()
-		log.Panicln(scanErr)
+		return nil, scanErr
 	}
 	guest.Payment = costPerDay * delta
-	fmt.Println(guest)
+
 	insertRes, insertErr := tx.Exec(insertQuery, guest.Name, guest.CheckInDate, guest.CheckOutDate, guest.Payment)
 	if err != nil {
 		tx.Rollback()
-		log.Panicln(insertErr)
+		return nil, insertErr
 	}
 	log.Println(insertRes)
 
 	commitErr := tx.Commit()
 	if commitErr != nil {
 		tx.Rollback()
-		log.Panicln(commitErr)
+		return nil, commitErr
 	}
 	return insertRes, nil
 }
@@ -100,7 +96,7 @@ func GetAllGuests(db *sql.DB) (*sql.Rows, error) {
 	query := "SELECT * from hotel_man.guest"
 	rows, err := db.Query(query)
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
 	return rows, nil
 }
@@ -119,10 +115,13 @@ func UpdateCheckOutDate(db *sql.DB, t time.Time, id int) (sql.Result, error) {
 
 	checkInDate, _ := time.Parse("2006-01-02", checkInDateString)
 	delta := int(t.Sub(checkInDate).Hours() / 24)
+	if delta <= 0 {
+		return nil, errors.New("invalid date range")
+	}
 	newPaymentAmount := costPerDay * delta
 	rows, err := db.Exec(updateQuery, t.Format("2006-01-02"), newPaymentAmount, id)
 	if err != nil {
-		log.Panicln(err)
+		return nil,err
 	}
 	return rows, nil
 }
@@ -133,26 +132,26 @@ func DeleteGuest(db *sql.DB, id int) (sql.Result, error) {
 
 	tx, err := db.Begin()
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
 
 	descrementRes, decrementErr := tx.Exec(decrementRoomNum)
 	if decrementErr != nil {
 		tx.Rollback()
-		log.Panicln(err)
+		return nil, decrementErr
 	}
 	log.Println(descrementRes)
 
 	res, err := db.Exec(q, id)
 	if err != nil {
 		tx.Rollback()
-		log.Panicln(err)
+		return nil, err
 	}
 
 	commitErr := tx.Commit()
 	if commitErr != nil {
 		tx.Rollback()
-		log.Panicln(commitErr)
+		return nil, commitErr
 	}
 	return res, nil
 }
